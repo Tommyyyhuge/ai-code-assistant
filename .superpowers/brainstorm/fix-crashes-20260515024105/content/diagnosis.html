@@ -1,0 +1,78 @@
+<h2>诊断结果：前端"修复时卡退"根因分析</h2>
+<p class="subtitle">共发现 10 个问题，3 个直接导致卡退</p>
+
+<h3 style="color: #ef4444; margin-top: 32px;">🔴 直接导致"修复时卡退"的根因</h3>
+
+<div class="cards">
+  <div class="card" data-choice="root1" onclick="toggleSelect(this)">
+    <div class="card-body">
+      <h3>① HMR 错误覆盖层被关闭</h3>
+      <p>vite.config.ts:9 — <code>hmr: { overlay: false }</code></p>
+      <p style="color: #ef4444; font-weight: 600;">核心根因！修改代码后 HMR 产生错误，但覆盖层被禁用，错误不可见，React 树崩溃 → 白屏/"卡退"</p>
+      <p>修复：改为 <code>overlay: true</code> 或删除 hmr 配置块</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="root2" onclick="toggleSelect(this)">
+    <div class="card-body">
+      <h3>② TypeScript 6.0.2 pre-release 不稳定</h3>
+      <p>package.json + tsconfig.app.json</p>
+      <p style="color: #ef4444; font-weight: 600;">TS 6 尚未正式发布，erasableSyntaxOnly 实验特性在 HMR 时可能产生意外编译行为</p>
+      <p>修复：降级到 TypeScript 5.8 稳定版</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="root3" onclick="toggleSelect(this)">
+    <div class="card-body">
+      <h3>③ 零错误边界 → 小错导致整体崩溃</h3>
+      <p>整个项目无 ErrorBoundary 组件</p>
+      <p style="color: #ef4444; font-weight: 600;">任何组件中未捕获的错误都会卸载整个 React 树，HMR 重载时极易触发</p>
+      <p>修复：添加 ErrorBoundary + 全局错误处理</p>
+    </div>
+  </div>
+</div>
+
+<h3 style="color: #f59e0b; margin-top: 32px;">🟠 运行时会崩溃的问题</h3>
+
+<div class="cards">
+  <div class="card" data-choice="sec1" onclick="toggleSelect(this)">
+    <div class="card-body">
+      <h3>④ API 响应格式不匹配</h3>
+      <p>authStore.ts:34,41,78 — <code>response.data.data</code> 访问不存在的嵌套属性</p>
+      <p>FastAPI 返回平铺 JSON，前端却多解包一层 → <strong>所有登录/注册必定抛 TypeError</strong></p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="sec2" onclick="toggleSelect(this)">
+    <div class="card-body">
+      <h3>⑤ 缺少 Tailwind CSS 依赖</h3>
+      <p>package.json 无 tailwindcss，无配置文件，但所有组件使用 Tailwind 类名</p>
+      <p>不影响崩溃，但样式完全失效</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="sec3" onclick="toggleSelect(this)">
+    <div class="card-body">
+      <h3>⑥ CSS 嵌套无 PostCSS 插件</h3>
+      <p>App.css 使用 SCSS 嵌套语法，无 postcss-nesting 插件</p>
+      <p>可能产生隐藏编译警告/错误</p>
+    </div>
+  </div>
+</div>
+
+<h3 style="color: #3b82f6; margin-top: 32px;">🟡 次优先级问题</h3>
+
+<div class="cards">
+  <div class="card" data-choice="low1" onclick="toggleSelect(this)">
+    <div class="card-body">
+      <h3>⑦ 401 拦截器用 window.location 硬跳转</h3>
+      <p>api.ts:28 — 应使用 React Router navigate()</p>
+    </div>
+  </div>
+  <div class="card" data-choice="low2" onclick="toggleSelect(this)">
+    <div class="card-body">
+      <h3>⑧ register → login 链式调用竞态风险</h3>
+      <p>authStore.ts:55 — 状态更新不原子</p>
+    </div>
+  </div>
+</div>

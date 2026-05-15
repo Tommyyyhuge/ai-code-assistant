@@ -1,0 +1,92 @@
+<h2>方案 A 设计：导航栏 + 布局框架 + 注册页</h2>
+<p class="subtitle">最小可行版本，快速搭建页面骨架</p>
+
+<h3>一、页面结构</h3>
+
+<div class="mockup">
+  <div class="mockup-header">整体布局</div>
+  <div class="mockup-body">
+    <pre style="font-size: 12px; line-height: 1.5;">
+┌─────────────────────────────────────────┐
+│  [Logo]  首页  题目列表      [登录/注册] │  ← Navbar (固定顶部)
+├─────────────────────────────────────────┤
+│                                         │
+│           主内容区域 (Router Outlet)      │  ← 各页面内容
+│                                         │
+│                                         │
+└─────────────────────────────────────────┘
+    </pre>
+  </div>
+</div>
+
+<h3>二、新增/修改文件</h3>
+
+<table style="width: 100%; border-collapse: collapse;">
+  <tr style="background: #f8fafc;"><th style="padding: 8px; text-align: left;">文件</th><th style="padding: 8px; text-align: left;">操作</th><th style="padding: 8px; text-align: left;">职责</th></tr>
+  <tr><td style="padding: 8px;"><code>src/components/Navbar.tsx</code></td><td style="padding: 8px; color: #059669;">新增</td><td style="padding: 8px;">顶部导航栏</td></tr>
+  <tr style="background: #f8fafc;"><td style="padding: 8px;"><code>src/components/Layout.tsx</code></td><td style="padding: 8px; color: #059669;">新增</td><td style="padding: 8px;">页面布局容器</td></tr>
+  <tr><td style="padding: 8px;"><code>src/pages/RegisterPage.tsx</code></td><td style="padding: 8px; color: #059669;">新增</td><td style="padding: 8px;">注册页面</td></tr>
+  <tr style="background: #f8fafc;"><td style="padding: 8px;"><code>src/App.tsx</code></td><td style="padding: 8px; color: #dc2626;">修改</td><td style="padding: 8px;">添加 Layout 包裹 + 注册路由</td></tr>
+  <tr><td style="padding: 8px;"><code>src/components/LoginForm.tsx</code></td><td style="padding: 8px; color: #dc2626;">修改</td><td style="padding: 8px;">添加 "去注册" 链接</td></tr>
+</table>
+
+<h3 style="margin-top: 32px;">三、Navbar 内容</h3>
+
+<div class="mockup">
+  <div class="mockup-header">导航栏结构</div>
+  <div class="mockup-body">
+    <ul>
+      <li><strong>左侧</strong>：Logo（点击回首页）</li>
+      <li><strong>中间</strong>：首页链接、题目列表链接</li>
+      <li><strong>右侧</strong>：
+        <ul>
+          <li>未登录：登录按钮、注册按钮</li>
+          <li>已登录：用户名 + 下拉菜单（个人中心、退出）</li>
+        </ul>
+      </li>
+    </ul>
+  </div>
+</div>
+
+<h3 style="margin-top: 32px;">四、注册页内容</h3>
+
+<div class="mockup">
+  <div class="mockup-header">RegisterPage 表单</div>
+  <div class="mockup-body">
+    <ul>
+      <li>用户名输入框（3-50字符）</li>
+      <li>邮箱输入框</li>
+      <li>密码输入框（8位以上）</li>
+      <li>确认密码输入框</li>
+      <li>注册按钮</li>
+      <li>"已有账号？去登录" 链接</li>
+    </ul>
+  </div>
+</div>
+
+<h3 style="margin-top: 32px;">五、路由变更</h3>
+
+<div class="mockup">
+  <div class="mockup-header">App.tsx 路由</div>
+  <div class="mockup-body">
+    <pre style="font-size: 12px;">
+/           → HomePage
+/login      → LoginPage  
+/register   → RegisterPage（新增）
+/problems   → 题目列表页（占位，后续实现）
+    </pre>
+  </div>
+</div>
+
+<h3 style="margin-top: 32px;">六、不在本次范围内的</h3>
+
+<div style="background: #fef2f2; padding: 16px; border-radius: 8px; color: #991b1b;">
+  <p>以下功能<strong>不</strong>在本次开发中，留给后续迭代：</p>
+  <ul>
+    <li>❌ 移动端汉堡菜单（响应式折叠）</li>
+    <li>❌ 表单实时验证提示</li>
+    <li>❌ 路由守卫（未登录跳转）</li>
+    <li>❌ 用户头像上传</li>
+    <li>❌ 题目列表页实际内容</li>
+  </ul>
+</div>

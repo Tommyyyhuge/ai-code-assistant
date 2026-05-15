@@ -1,0 +1,55 @@
+# 生产环境 Docker Compose 配置
+# 用法: docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+
+services:
+  db:
+    restart: unless-stopped
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=${POSTGRES_DB}
+    # 生产环境不建议暴露数据库端口
+    ports: []
+
+  redis:
+    restart: unless-stopped
+    ports: []
+
+  backend:
+    restart: unless-stopped
+    # 生产模式：移除热重载挂载，使用构建镜像而非卷挂载
+    volumes: []
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+      - REDIS_URL=redis://redis:6379/0
+      - SECRET_KEY=${SECRET_KEY}
+      - ACCESS_TOKEN_EXPIRE_MINUTES=${ACCESS_TOKEN_EXPIRE_MINUTES:-60}
+      - REFRESH_TOKEN_EXPIRE_DAYS=${REFRESH_TOKEN_EXPIRE_DAYS:-7}
+      - ALGORITHM=${ALGORITHM:-HS256}
+      - GITHUB_CLIENT_ID=${GITHUB_CLIENT_ID:-}
+      - GITHUB_CLIENT_SECRET=${GITHUB_CLIENT_SECRET:-}
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 4
+
+  worker:
+    restart: unless-stopped
+    volumes: []
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+      - REDIS_URL=redis://redis:6379/0
+      - SECRET_KEY=${SECRET_KEY}
+    # 生产环境：移除 privileged 模式，改用 security_opt
+    privileged: false
+    security_opt:
+      - seccomp:./backend/judge/seccomp.json
+
+  frontend:
+    restart: unless-stopped
+    volumes: []
+    environment:
+      - VITE_API_URL=${VITE_API_URL:-http://localhost:8000}
+    # 生产模式：使用构建产物静态服务（需配合 nginx 或 vite preview）
+    command: npm run build && npm run preview -- --host 0.0.0.0 --port 3000
+
+volumes:
+  postgres_data:
+  redis_data:

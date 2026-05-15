@@ -1,0 +1,144 @@
+<h2>方案 A 设计：稳定降级重构</h2>
+<p class="subtitle">消除"修复时卡退" + 建立可维护的工程基础</p>
+
+<h3>一、技术栈选型</h3>
+<table style="width: 100%; border-collapse: collapse; margin-top: 12px;">
+  <tr style="background: #f8fafc;"><th style="padding: 8px; text-align: left;">层级</th><th style="padding: 8px; text-align: left;">当前版本</th><th style="padding: 8px; text-align: left;">目标版本</th><th style="padding: 8px; text-align: left;">原因</th></tr>
+  <tr><td style="padding: 8px;">React</td><td style="padding: 8px; color: #dc2626;">19.2.6</td><td style="padding: 8px; color: #059669;">18.3.1</td><td style="padding: 8px;">生态成熟，无兼容性风险</td></tr>
+  <tr style="background: #f8fafc;"><td style="padding: 8px;">TypeScript</td><td style="padding: 8px; color: #dc2626;">~6.0.2</td><td style="padding: 8px; color: #059669;">~5.8.0</td><td style="padding: 8px;">稳定版，去除 erasableSyntaxOnly</td></tr>
+  <tr><td style="padding: 8px;">Vite</td><td style="padding: 8px; color: #dc2626;">8.0.12</td><td style="padding: 8px; color: #059669;">5.4.14</td><td style="padding: 8px;">HMR 久经考验，社区最广泛</td></tr>
+  <tr style="background: #f8fafc;"><td style="padding: 8px;">React Router</td><td style="padding: 8px; color: #dc2626;">7.15.0</td><td style="padding: 8px; color: #059669;">6.28.0</td><td style="padding: 8px;">与 React 18 兼容</td></tr>
+  <tr><td style="padding: 8px;">Zustand</td><td style="padding: 8px; color: #dc2626;">5.0.13</td><td style="padding: 8px; color: #059669;">4.5.5</td><td style="padding: 8px;">与 React 18 兼容</td></tr>
+  <tr style="background: #f8fafc;"><td style="padding: 8px;">Tailwind CSS</td><td style="padding: 8px; color: #dc2626;">缺失</td><td style="padding: 8px; color: #059669;">3.4.17</td><td style="padding: 8px;">安装 + 配置完整工具链</td></tr>
+</table>
+
+<h3 style="margin-top: 32px;">二、目录结构变更</h3>
+
+<div class="split">
+  <div class="mockup">
+    <div class="mockup-header">当前结构 ❌</div>
+    <div class="mockup-body">
+      <pre style="font-size: 12px; line-height: 1.5;">
+frontend/src/
+  App.tsx           ← 路由 + 布局混杂
+  App.css           ← SCSS嵌套，无PostCSS
+  main.tsx          ← StrictMode + BrowserRouter
+  index.css         ← 全局BEM类名（混乱）
+  stores/
+    authStore.ts    ← API格式错误
+  services/
+    api.ts          ← window.location硬跳转
+  components/
+    LoginForm.tsx
+  pages/
+    HomePage.tsx
+    LoginPage.tsx</pre>
+    </div>
+  </div>
+  <div class="mockup">
+    <div class="mockup-header">目标结构 ✅</div>
+    <div class="mockup-body">
+      <pre style="font-size: 12px; line-height: 1.5;">
+frontend/src/
+  main.tsx          ← StrictMode + BrowserRouter
+  App.tsx           ← 路由 + 布局分层
+  App.css           ← 删除SCSS嵌套
+  index.css         ← Tailwind @指令
+  stores/
+    authStore.ts    ← 修复API格式
+  services/
+    api.ts          ← 使用navigate
+  components/
+    ErrorBoundary.tsx ← 新增
+    LoginForm.tsx
+  pages/
+    HomePage.tsx
+    LoginPage.tsx
+  types/
+    api.ts          ← 新增API类型
+  tailwind.config.js  ← 新增
+  postcss.config.js   ← 新增</pre>
+    </div>
+  </div>
+</div>
+
+<h3 style="margin-top: 32px;">三、API 层修复设计</h3>
+
+<div class="mockup">
+  <div class="mockup-header">响应格式统一</div>
+  <div class="mockup-body">
+    <p><strong>当前（错误）:</strong> <code>response.data.data</code> → undefined → TypeError</p>
+    <p><strong>目标（正确）:</strong> <code>response.data</code> → FastAPI 直接返回的 JSON</p>
+    <p style="margin-top: 8px;"><strong>修改点:</strong></p>
+    <ul>
+      <li>authStore.ts:34 — <code>response.data.data</code> → <code>response.data</code></li>
+      <li>authStore.ts:41 — <code>userResponse.data.data</code> → <code>userResponse.data</code></li>
+      <li>authStore.ts:78 — <code>response.data.data</code> → <code>response.data</code></li>
+    </ul>
+    <p style="margin-top: 8px;"><strong>新增 API 类型文件</strong> <code>src/types/api.ts</code> — 统一定义后端响应类型</p>
+  </div>
+</div>
+
+<h3 style="margin-top: 32px;">四、错误处理架构</h3>
+
+<div class="mockup">
+  <div class="mockup-header">三层防御体系</div>
+  <div class="mockup-body">
+    <p><strong>第一层：全局 ErrorBoundary（App 根节点）</strong></p>
+    <pre style="font-size: 12px; background: #f8fafc; padding: 8px;">
+&lt;ErrorBoundary&gt;
+  &lt;BrowserRouter&gt;
+    &lt;App /&gt;
+  &lt;/BrowserRouter&gt;
+&lt;/ErrorBoundary&gt;</pre>
+    <p><strong>第二层：API 错误拦截（api.ts）</strong></p>
+    <ul>
+      <li>401 → 清理 token → 使用 React Router navigate('/login')</li>
+      <li>500 → 显示友好错误信息</li>
+    </ul>
+    <p><strong>第三层：组件错误边界（关键页面）</strong></p>
+    <ul>
+      <li>LoginPage、HomePage 各自包裹 ErrorBoundary</li>
+    </ul>
+  </div>
+</div>
+
+<h3 style="margin-top: 32px;">五、样式系统</h3>
+
+<div class="mockup">
+  <div class="mockup-header">Tailwind 完整集成</div>
+  <div class="mockup-body">
+    <p><strong>安装依赖:</strong> <code>tailwindcss postcss autoprefixer</code></p>
+    <p><strong>配置:</strong></p>
+    <pre style="font-size: 12px; background: #f8fafc; padding: 8px;">tailwind.config.js:
+  content: ["./index.html", "./src/**/*.{js,ts,jsx,tsx}"]
+  theme: { extend: { colors: { primary: {...} } } }
+
+postcss.config.js:
+  plugins: { tailwindcss: {}, autoprefixer: {} }</pre>
+    <p><strong>清理:</strong> 删除 index.css 中所有 BEM 类名（.title/.card/.input 等）</p>
+    <p><strong>App.css:</strong> 重写为平铺 CSS，去除嵌套语法</p>
+  </div>
+</div>
+
+<h3 style="margin-top: 32px;">六、文件变更地图</h3>
+
+<table style="width: 100%; border-collapse: collapse;">
+  <tr style="background: #f8fafc;"><th style="padding: 8px; text-align: left;">文件</th><th style="padding: 8px; text-align: left;">操作</th><th style="padding: 8px; text-align: left;">说明</th></tr>
+  <tr><td style="padding: 8px;">package.json</td><td style="padding: 8px; color: #dc2626;">修改</td><td style="padding: 8px;">版本降级 + 新增 tailwindcss 等依赖</td></tr>
+  <tr style="background: #f8fafc;"><td style="padding: 8px;">package-lock.json</td><td style="padding: 8px; color: #dc2626;">重新生成</td><td style="padding: 8px;">删除后 npm install 重新生成</td></tr>
+  <tr><td style="padding: 8px;">vite.config.ts</td><td style="padding: 8px; color: #dc2626;">修改</td><td style="padding: 8px;">删除 hmr: { overlay: false } 配置</td></tr>
+  <tr style="background: #f8fafc;"><td style="padding: 8px;">tsconfig.app.json</td><td style="padding: 8px; color: #dc2626;">修改</td><td style="padding: 8px;">删除 erasableSyntaxOnly，目标改为 ES2020</td></tr>
+  <tr><td style="padding: 8px;">tsconfig.json</td><td style="padding: 8px; color: #059669;">不变</td><td style="padding: 8px;">项目引用配置保持</td></tr>
+  <tr style="background: #f8fafc;"><td style="padding: 8px;">main.tsx</td><td style="padding: 8px; color: #dc2626;">修改</td><td style="padding: 8px;">包裹 ErrorBoundary</td></tr>
+  <tr><td style="padding: 8px;">App.tsx</td><td style="padding: 8px; color: #059669;">不变</td><td style="padding: 8px;">路由结构保持</td></tr>
+  <tr style="background: #f8fafc;"><td style="padding: 8px;">App.css</td><td style="padding: 8px; color: #dc2626;">重写</td><td style="padding: 8px;">删除 SCSS 嵌套语法</td></tr>
+  <tr><td style="padding: 8px;">index.css</td><td style="padding: 8px; color: #dc2626;">重写</td><td style="padding: 8px;">Tailwind @指令 + 删除 BEM 类</td></tr>
+  <tr style="background: #f8fafc;"><td style="padding: 8px;">src/services/api.ts</td><td style="padding: 8px; color: #dc2626;">修改</td><td style="padding: 8px;">401 拦截器改用 navigate</td></tr>
+  <tr><td style="padding: 8px;">src/stores/authStore.ts</td><td style="padding: 8px; color: #dc2626;">修改</td><td style="padding: 8px;">修复 response.data 访问 + register 原子性</td></tr>
+  <tr style="background: #f8fafc;"><td style="padding: 8px;">src/components/LoginForm.tsx</td><td style="padding: 8px; color: #dc2626;">修改</td><td style="padding: 8px;">添加可选链保护</td></tr>
+  <tr><td style="padding: 8px;">src/components/ErrorBoundary.tsx</td><td style="padding: 8px; color: #059669;">新增</td><td style="padding: 8px;">全局错误边界组件</td></tr>
+  <tr style="background: #f8fafc;"><td style="padding: 8px;">src/types/api.ts</td><td style="padding: 8px; color: #059669;">新增</td><td style="padding: 8px;">API 响应类型定义</td></tr>
+  <tr><td style="padding: 8px;">tailwind.config.js</td><td style="padding: 8px; color: #059669;">新增</td><td style="padding: 8px;">Tailwind 配置</td></tr>
+  <tr style="background: #f8fafc;"><td style="padding: 8px;">postcss.config.js</td><td style="padding: 8px; color: #059669;">新增</td><td style="padding: 8px;">PostCSS 配置</td></tr>
+</table>
