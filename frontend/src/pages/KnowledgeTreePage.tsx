@@ -4,6 +4,7 @@ import { useKnowledgeStore } from '../stores/knowledgeStore'
 import { useAuthStore } from '../stores/authStore'
 import KnowledgeTree from '../components/KnowledgeTree'
 import KnowledgeNeighborGraph from '../components/KnowledgeNeighborGraph'
+import InlineChat from '../components/InlineChat'
 
 type Tab = 'lecture' | 'problems' | 'related'
 
@@ -14,6 +15,7 @@ export default function KnowledgeTreePage() {
   const { isAuthenticated } = useAuthStore()
   const [tab, setTab] = useState<Tab>('lecture')
   const [codeLang, setCodeLang] = useState<'cpp' | 'py' | 'java'>('cpp')
+  const [showChat, setShowChat] = useState(false)
 
   useEffect(() => { fetchTree() }, [fetchTree])
 
@@ -106,8 +108,16 @@ export default function KnowledgeTreePage() {
                   >
                     标记完成
                   </button>
-                </div>
-              )}
+            {/* Inline AI Chat */}
+            {showChat && (
+              <InlineChat
+                knowledgeNodeId={currentNode.node.id}
+                knowledgeNodeTitle={currentNode.node.title}
+                onClose={() => setShowChat(false)}
+              />
+            )}
+          </div>
+        )}
             </div>
 
             {/* 用户进度 */}
@@ -134,6 +144,15 @@ export default function KnowledgeTreePage() {
                   {t === 'lecture' ? '讲解' : t === 'problems' ? '题集' : '关联知识'}
                 </button>
               ))}
+              <div className="ml-auto">
+                <button
+                  onClick={() => setShowChat(!showChat)}
+                  className={`px-4 py-2 text-sm border-b-2 transition-colors
+                    ${showChat ? 'border-blue-600 text-blue-600 font-medium' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
+                >
+                  💬 问 AI
+                </button>
+              </div>
             </div>
 
             {/* Tab: 讲解 */}

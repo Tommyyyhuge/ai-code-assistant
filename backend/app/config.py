@@ -17,13 +17,10 @@ class Settings(BaseSettings):
     GITHUB_CLIENT_ID: str = ""
     GITHUB_CLIENT_SECRET: str = ""
 
-    # AI
-    DEEPSEEK_API_KEY: str = ""
-    DEEPSEEK_API_BASE: str = "https://api.deepseek.com/v1"
-
     class Config:
         env_file = ".env"
         env_file_encoding = "utf-8"
+        extra = "ignore"  # 忽略 .env 中的多余配置
 
 
 @lru_cache()

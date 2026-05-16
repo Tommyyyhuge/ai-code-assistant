@@ -31,6 +31,15 @@ export default function Navbar() {
             <Link to="/knowledge" className="text-gray-700 hover:text-blue-600 transition-colors">
               知识图谱
             </Link>
+            <Link to="/paths" className="text-gray-700 hover:text-blue-600 transition-colors">
+              学习路径
+            </Link>
+            <Link to="/chat" className="text-gray-700 hover:text-blue-600 transition-colors">
+              AI 对话
+            </Link>
+            <Link to="/settings/ai" className="text-gray-700 hover:text-blue-600 transition-colors">
+              模型设置
+            </Link>
             <Link to="/problems" className="text-gray-700 hover:text-blue-600 transition-colors">
               题目列表
             </Link>

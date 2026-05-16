@@ -7,6 +7,10 @@ import ProblemListPage from './pages/ProblemListPage'
 import ProblemDetailPage from './pages/ProblemDetailPage'
 import KnowledgeTreePage from './pages/KnowledgeTreePage'
 import KnowledgeGraphPage from './pages/KnowledgeGraphPage'
+import LearningPathListPage from './pages/LearningPathListPage'
+import LearningPathDetailPage from './pages/LearningPathDetailPage'
+import AIChatPage from './pages/AIChatPage'
+import AISettingsPage from './pages/AISettingsPage'
 
 function App() {
   return (
@@ -19,6 +23,10 @@ function App() {
         <Route path="/problems/:id" element={<ProblemDetailPage />} />
         <Route path="/knowledge/*" element={<KnowledgeTreePage />} />
         <Route path="/knowledge-graph" element={<KnowledgeGraphPage />} />
+        <Route path="/paths" element={<LearningPathListPage />} />
+        <Route path="/paths/:slug" element={<LearningPathDetailPage />} />
+        <Route path="/chat" element={<AIChatPage />} />
+        <Route path="/settings/ai" element={<AISettingsPage />} />
       </Route>
     </Routes>
   )

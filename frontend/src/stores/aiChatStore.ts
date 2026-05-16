@@ -1,108 +1,144 @@
 import { create } from 'zustand'
 import { api } from '../services/api'
 
-export interface AIMessage {
-  id: string
-  role: 'user' | 'assistant' | 'system'
-  content: string
-  createdAt: string
+const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1'
+
+interface ConversationBrief {
+  id: string; title: string; knowledge_node_id: string | null
+  created_at: string; updated_at: string
 }
 
-export interface AIConversation {
-  id: string
-  title: string
-  problemId: string | null
-  knowledgeNodeId: string | null
-  promptLevel: number
-  messages: AIMessage[]
-  createdAt: string
+interface MessageItem {
+  id: string; role: 'user' | 'assistant' | 'system'; content: string; created_at: string
 }
 
 interface AIChatState {
-  conversations: AIConversation[]
-  currentConversation: AIConversation | null
+  conversations: ConversationBrief[]
+  currentId: string | null
+  messages: MessageItem[]
   isStreaming: boolean
   streamingContent: string
-  isLoading: boolean
   error: string | null
 
   fetchConversations: () => Promise<void>
-  createConversation: (params: {
-    title?: string
-    problemId?: string
-    knowledgeNodeId?: string
-    promptLevel?: number
-  }) => Promise<AIConversation>
-  sendMessage: (conversationId: string, content: string) => Promise<void>
-  fetchMessages: (conversationId: string) => Promise<void>
+  createConversation: (knowledgeNodeId?: string, title?: string, providerId?: string) => Promise<string>
+  fetchMessages: (id: string) => Promise<void>
+  sendMessage: (content: string) => Promise<void>
+  deleteConversation: (id: string) => Promise<void>
+  selectConversation: (id: string) => Promise<void>
 }
 
 export const useAIChatStore = create<AIChatState>((set, get) => ({
   conversations: [],
-  currentConversation: null,
+  currentId: null,
+  messages: [],
   isStreaming: false,
   streamingContent: '',
-  isLoading: false,
   error: null,
 
   fetchConversations: async () => {
-    set({ isLoading: true, error: null })
     try {
-      const response = await api.get('/ai/conversations')
-      set({ conversations: response.data, isLoading: false })
+      const r = await api.get('/ai/conversations')
+      set({ conversations: r.data })
+    } catch { /* ignore */ }
+  },
+
+  createConversation: async (knowledgeNodeId, title, providerId) => {
+    const body: Record<string, unknown> = { knowledge_node_id: knowledgeNodeId, title }
+    if (providerId) body.provider_id = providerId
+    const r = await api.post('/ai/conversations', body)
+    const id = r.data.id
+    set({ currentId: id, messages: [] })
+    await get().fetchConversations()
+    return id
+  },
+
+  fetchMessages: async (id: string) => {
+    try {
+      const r = await api.get(`/ai/conversations/${id}/messages`)
+      set({ messages: r.data, currentId: id })
+    } catch { /* ignore */ }
+  },
+
+  selectConversation: async (id: string) => {
+    set({ currentId: id, error: null })
+    await get().fetchMessages(id)
+  },
+
+  sendMessage: async (content: string) => {
+    const { currentId } = get()
+    if (!currentId) return
+
+    const userMsg: MessageItem = {
+      id: Date.now().toString(), role: 'user', content, created_at: new Date().toISOString(),
+    }
+    set((s) => ({ messages: [...s.messages, userMsg], isStreaming: true, streamingContent: '', error: null }))
+
+    const token = localStorage.getItem('access_token')
+    try {
+      const response = await fetch(`${API_BASE}/ai/conversations/${currentId}/stream?token=${token}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content }),
+      })
+
+      if (!response.ok) throw new Error('Stream failed')
+
+      const reader = response.body?.getReader()
+      if (!reader) throw new Error('No reader')
+
+      const decoder = new TextDecoder()
+      let fullContent = ''
+      let buffer = ''
+
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+
+        buffer += decoder.decode(value, { stream: true })
+        const lines = buffer.split('\n')
+        buffer = lines.pop() || ''
+
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            const data = line.slice(6)
+            if (data === '[DONE]') continue
+            try {
+              const parsed = JSON.parse(data)
+              if (parsed.content) {
+                fullContent += parsed.content
+                set({ streamingContent: fullContent })
+              }
+            } catch { /* skip */ }
+          }
+        }
+      }
+
+      if (fullContent) {
+        const assistantMsg: MessageItem = {
+          id: Date.now().toString(), role: 'assistant', content: fullContent, created_at: new Date().toISOString(),
+        }
+        set((s) => ({ messages: [...s.messages, assistantMsg], isStreaming: false, streamingContent: '' }))
+      } else {
+        set({ isStreaming: false, streamingContent: '' })
+      }
+
+      get().fetchConversations()
     } catch {
-      set({ isLoading: false, error: '获取对话列表失败' })
+      set({ isStreaming: false, error: 'AI 服务暂不可用' })
     }
   },
 
-  createConversation: async (params) => {
-    set({ isLoading: true, error: null })
+  deleteConversation: async (id: string) => {
     try {
-      const response = await api.post('/ai/conversations', params)
-      const conv: AIConversation = response.data
+      await api.delete(`/ai/conversations/${id}`)
       set((s) => ({
-        conversations: [conv, ...s.conversations],
-        currentConversation: conv,
-        isLoading: false,
+        conversations: s.conversations.filter((c) => c.id !== id),
+        currentId: s.currentId === id ? null : s.currentId,
+        messages: s.currentId === id ? [] : s.messages,
       }))
-      return conv
-    } catch {
-      set({ isLoading: false, error: '创建对话失败' })
-      throw new Error('创建对话失败')
-    }
-  },
-
-  sendMessage: async (conversationId: string, content: string) => {
-    set({ isStreaming: true, streamingContent: '' })
-    try {
-      const response = await api.post(`/ai/conversations/${conversationId}/messages`, { content })
-      const assistantMessage: AIMessage = response.data
-      const conv = get().currentConversation
-      if (conv && conv.id === conversationId) {
-        set({
-          currentConversation: {
-            ...conv,
-            messages: [...conv.messages, assistantMessage],
-          },
-        })
-      }
-    } catch {
-      set({ error: '发送消息失败' })
-    } finally {
-      set({ isStreaming: false, streamingContent: '' })
-    }
-  },
-
-  fetchMessages: async (conversationId: string) => {
-    set({ isLoading: true })
-    try {
-      const response = await api.get(`/ai/conversations/${conversationId}/messages`)
-      const conv = get().currentConversation
-      if (conv && conv.id === conversationId) {
-        set({ currentConversation: { ...conv, messages: response.data } })
-      }
-    } finally {
-      set({ isLoading: false })
-    }
+    } catch { /* ignore */ }
   },
 }))
+
+export type { ConversationBrief, MessageItem }

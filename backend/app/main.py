@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from app.rate_limit import limiter
-from app.routers import auth, tags, problems, knowledge
+from app.routers import auth, tags, problems, knowledge, learning_path, ai_chat, ai_provider
 from app.routers.submission import router as submission_router
 
 app = FastAPI(
@@ -31,6 +31,9 @@ app.include_router(tags.router, prefix="/api/v1")
 app.include_router(problems.router, prefix="/api/v1")
 app.include_router(submission_router)
 app.include_router(knowledge.router)
+app.include_router(learning_path.router)
+app.include_router(ai_chat.router)
+app.include_router(ai_provider.router)
 
 
 @app.get("/health")
