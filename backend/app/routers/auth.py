@@ -4,7 +4,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.database import get_db
 from app.rate_limit import limiter
 from app.schemas.user import (
-    UserRegister, UserLogin, UserResponse, TokenResponse, RefreshTokenRequest
+    UserRegister, UserLogin, UserResponse, TokenResponse, RefreshTokenRequest,
+    ForgotPasswordRequest, ResetPasswordRequest,
 )
 from app.services.auth_service import AuthService
 from app.utils.security import decode_token
@@ -82,3 +83,38 @@ async def refresh_token(
         return await auth_service.refresh_access_token(data.refresh_token)
     except ValueError as e:
         raise HTTPException(status_code=401, detail=str(e))
+
+
+@router.post("/forgot-password")
+@limiter.limit("3/minute")
+async def forgot_password(
+    request: Request,
+    data: ForgotPasswordRequest,
+    db: AsyncSession = Depends(get_db),
+):
+    """发送密码重置验证码"""
+    auth_service = AuthService(db)
+    user = await auth_service.get_user_by_email(data.email)
+    if not user:
+        return {"message": "如果该邮箱已注册，验证码已发送"}
+    try:
+        await auth_service.send_reset_code(data.email)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"邮件发送失败: {str(e)}")
+    return {"message": "验证码已发送"}
+
+
+@router.post("/reset-password")
+@limiter.limit("5/minute")
+async def reset_password(
+    request: Request,
+    data: ResetPasswordRequest,
+    db: AsyncSession = Depends(get_db),
+):
+    """通过验证码重置密码"""
+    auth_service = AuthService(db)
+    try:
+        await auth_service.reset_password(data.email, data.code, data.new_password)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    return {"message": "密码重置成功"}

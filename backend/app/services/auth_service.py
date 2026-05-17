@@ -1,4 +1,5 @@
 import re
+import random
 from datetime import datetime
 from typing import Optional
 from uuid import UUID
@@ -10,6 +11,8 @@ from app.utils.security import (
     get_password_hash, verify_password,
     create_access_token, create_refresh_token, decode_token
 )
+import redis.asyncio as aioredis
+from app.config import settings
 
 # 密码强度规则
 _PASSWORD_MIN_LENGTH = 8
@@ -117,3 +120,65 @@ class AuthService:
             select(User).where(User.id == user_id)
         )
         return result.scalar_one_or_none()
+
+    async def get_user_by_email(self, email: str) -> Optional[User]:
+        """通过邮箱获取用户"""
+        result = await self.db.execute(
+            select(User).where(User.email == email)
+        )
+        return result.scalar_one_or_none()
+
+    async def send_reset_code(self, email: str) -> None:
+        """发送密码重置验证码"""
+        from app.utils.email import send_reset_code_email
+
+        # 生成 6 位验证码
+        code = str(random.randint(100000, 999999))
+
+        # 存入 Redis，10 分钟过期
+        redis_client = aioredis.from_url(settings.REDIS_URL)
+        try:
+            await redis_client.setex(f"reset_code:{email}", 600, code)
+            # 发送邮件
+            send_reset_code_email(email, code)
+        finally:
+            await redis_client.aclose()
+
+    async def reset_password(self, email: str, code: str, new_password: str) -> None:
+        """验证验证码并重置密码"""
+        from app.utils.email import _validate_password_strength
+
+        # 从 Redis 读取验证码
+        redis_client = aioredis.from_url(settings.REDIS_URL)
+        try:
+            stored_code = await redis_client.get(f"reset_code:{email}")
+            if not stored_code:
+                raise ValueError("验证码已过期或不存在")
+
+            stored_code_str = stored_code.decode() if isinstance(stored_code, bytes) else stored_code
+            if stored_code_str != code:
+                # 错误计数（防暴力破解）
+                attempts_key = f"reset_attempts:{email}"
+                attempts = await redis_client.incr(attempts_key)
+                await redis_client.expire(attempts_key, 600)
+                if attempts >= 5:
+                    await redis_client.delete(f"reset_code:{email}")
+                    await redis_client.delete(attempts_key)
+                    raise ValueError("验证码错误次数过多，请重新获取")
+                raise ValueError("验证码错误")
+
+            # 验证通过，删除验证码
+            await redis_client.delete(f"reset_code:{email}")
+            await redis_client.delete(f"reset_attempts:{email}")
+        finally:
+            await redis_client.aclose()
+
+        # 验证密码强度
+        _validate_password_strength(new_password)
+
+        # 更新密码
+        user = await self.get_user_by_email(email)
+        if not user:
+            raise ValueError("用户不存在")
+        user.password_hash = get_password_hash(new_password)
+        await self.db.commit()

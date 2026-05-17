@@ -12,6 +12,7 @@ import LearningPathListPage from './pages/LearningPathListPage'
 import LearningPathDetailPage from './pages/LearningPathDetailPage'
 import AIChatPage from './pages/AIChatPage'
 import AISettingsPage from './pages/AISettingsPage'
+import ForgotPasswordPage from './pages/ForgotPasswordPage'
 
 function App() {
   return (
@@ -28,8 +29,9 @@ function App() {
           <Route path="/paths" element={<LearningPathListPage />} />
           <Route path="/paths/:slug" element={<LearningPathDetailPage />} />
           <Route path="/chat" element={<AIChatPage />} />
-          <Route path="/settings/ai" element={<AISettingsPage />} />
-        </Route>
+        <Route path="/settings/ai" element={<AISettingsPage />} />
+        <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+      </Route>
       </Routes>
     </ErrorBoundary>
   )

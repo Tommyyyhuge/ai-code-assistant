@@ -28,6 +28,12 @@ class Settings(BaseSettings):
     SENTRY_DSN: str = ""
     SENTRY_ENVIRONMENT: str = "development"
 
+    # SMTP — 邮件发送（忘记密码）
+    SMTP_HOST: str = "smtp.qq.com"
+    SMTP_PORT: int = 587
+    SMTP_USER: str = ""
+    SMTP_PASSWORD: str = ""
+
     class Config:
         env_file = ".env"
         env_file_encoding = "utf-8"

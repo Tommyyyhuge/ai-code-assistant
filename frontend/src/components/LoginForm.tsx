@@ -69,12 +69,18 @@ export default function LoginForm() {
       >
         {isLoading ? '登录中...' : '登录'}
       </button>
-        <p className="mt-4 text-center text-sm text-gray-600">
+      
+      <div className="flex justify-between items-center mt-4">
+        <p className="text-sm text-gray-600">
           还没有账号？{' '}
           <Link to="/register" className="text-blue-600 hover:underline">
             去注册
           </Link>
         </p>
+        <Link to="/forgot-password" className="text-sm text-blue-600 hover:underline">
+          忘记密码？
+        </Link>
+      </div>
     </form>
   )
 }
