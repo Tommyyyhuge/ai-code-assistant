@@ -5,7 +5,7 @@ from uuid import UUID
 from app.database import get_db
 from app.rate_limit import limiter
 from app.models.ai_provider import AIProvider
-from app.utils.security import get_current_user
+from app.utils.security import get_current_user, encrypt_api_key, decrypt_api_key
 
 router = APIRouter(prefix="/api/v1/ai/providers", tags=["AI配置"])
 
@@ -28,7 +28,7 @@ async def list_providers(
     return [
         {
             "id": str(p.id), "name": p.name, "base_url": p.base_url,
-            "api_key": _mask_key(p.api_key), "model": p.model,
+            "api_key": _mask_key(decrypt_api_key(p.api_key)), "model": p.model,
             "is_default": p.is_default,
         }
         for p in providers
@@ -57,7 +57,7 @@ async def create_provider(
         user_id=current_user.id,
         name=name,
         base_url=body.get("base_url", "").strip(),
-        api_key=body.get("api_key", "").strip(),
+        api_key=encrypt_api_key(body.get("api_key", "").strip()),
         model=body.get("model", "").strip(),
         is_default=body.get("is_default", False),
     )
@@ -91,7 +91,10 @@ async def update_provider(
 
     for field in ("name", "base_url", "api_key", "model"):
         if field in body and body[field]:
-            setattr(provider, field, body[field])
+            value = body[field]
+            if field == "api_key":
+                value = encrypt_api_key(value)
+            setattr(provider, field, value)
     if "is_default" in body:
         provider.is_default = body["is_default"]
 

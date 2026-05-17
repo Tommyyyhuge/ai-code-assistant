@@ -18,13 +18,14 @@ router = APIRouter(prefix="/api/v1/knowledge", tags=["知识图谱"])
 @limiter.limit("30/minute")
 async def get_tree(
     request: Request,
+    category: Optional[str] = None,
     db: AsyncSession = Depends(get_db),
     current_user=Depends(get_current_user_safe),
 ):
-    """获取知识树，如已登录则合并用户进度"""
+    """获取知识树，可选按 category 过滤，如已登录则合并用户进度"""
     service = KnowledgeService(db)
     user_id = current_user.id if current_user else None
-    children = await service.get_tree(user_id)
+    children = await service.get_tree(user_id, category=category)
     return KnowledgeTreeResponse(children=children)
 
 

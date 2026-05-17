@@ -3,6 +3,9 @@ from functools import lru_cache
 
 
 class Settings(BaseSettings):
+    # 应用
+    APP_VERSION: str = "0.1.0"
+
     # 数据库 — 无默认值，必须通过环境变量或 .env 文件配置
     DATABASE_URL: str = ""
     REDIS_URL: str = ""
@@ -16,6 +19,14 @@ class Settings(BaseSettings):
     # GitHub OAuth
     GITHUB_CLIENT_ID: str = ""
     GITHUB_CLIENT_SECRET: str = ""
+
+    # AI — 平台默认 AI 配置
+    DEEPSEEK_API_KEY: str = ""
+    DEEPSEEK_API_BASE: str = "https://api.deepseek.com/v1"
+
+    # Sentry — 错误监控
+    SENTRY_DSN: str = ""
+    SENTRY_ENVIRONMENT: str = "development"
 
     class Config:
         env_file = ".env"

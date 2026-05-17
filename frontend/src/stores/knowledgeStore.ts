@@ -47,7 +47,7 @@ interface KnowledgeState {
   isLoading: boolean
   error: string | null
 
-  fetchTree: () => Promise<void>
+  fetchTree: (category?: string) => Promise<void>
   fetchNode: (slug: string) => Promise<void>
   updateProgress: (nodeId: string, status: string) => Promise<void>
   clearError: () => void
@@ -59,10 +59,10 @@ export const useKnowledgeStore = create<KnowledgeState>((set) => ({
   isLoading: false,
   error: null,
 
-  fetchTree: async () => {
+  fetchTree: async (category?: string) => {
     set({ isLoading: true, error: null })
     try {
-      const response = await api.get('/knowledge/tree')
+      const response = await api.get('/knowledge/tree', { params: { category } })
       set({ tree: response.data.children, isLoading: false })
     } catch {
       set({ isLoading: false, error: '获取知识树失败' })

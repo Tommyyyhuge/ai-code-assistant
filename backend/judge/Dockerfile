@@ -7,9 +7,9 @@ RUN apk add --no-cache \
     bash \
     coreutils
 
-WORKDIR /app
+WORKDIR /sandbox
 
-COPY judge.sh /app/judge.sh
-RUN chmod +x /app/judge.sh
+COPY judge.sh /sandbox/judge.sh
+RUN chmod +x /sandbox/judge.sh
 
-ENTRYPOINT ["/app/judge.sh"]
+ENTRYPOINT ["/sandbox/judge.sh"]

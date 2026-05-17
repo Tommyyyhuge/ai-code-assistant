@@ -381,6 +381,14 @@ async def seed():
     from sqlalchemy import text as sa_text
 
     async with AsyncSessionLocal() as db:
+        # 检查表是否存在
+        result = await db.execute(
+            sa_text("SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'knowledge_nodes')")
+        )
+        if not result.scalar():
+            print("❌ 表 knowledge_nodes 不存在，请先运行: alembic upgrade head")
+            return
+
         # 清理已有数据（幂等重跑）
         await db.execute(sa_text("DELETE FROM knowledge_edges"))
         await db.execute(sa_text("DELETE FROM knowledge_nodes"))

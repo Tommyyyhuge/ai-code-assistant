@@ -9,12 +9,12 @@ MEMORY_LIMIT=$5
 
 # 编译（C++）
 if [ "$LANGUAGE" = "cpp" ]; then
-    g++ -std=c++17 -O2 -o /app/program "$CODE_FILE" 2>&1
+    g++ -std=c++17 -O2 -o /sandbox/program "$CODE_FILE" 2>&1
 fi
 
 # 运行
 if [ "$LANGUAGE" = "cpp" ]; then
-    timeout "$((TIME_LIMIT / 1000))s" /app/program < "$INPUT_FILE"
+    timeout "$((TIME_LIMIT / 1000))s" /sandbox/program < "$INPUT_FILE"
 else
     timeout "$((TIME_LIMIT / 1000))s" python3 "$CODE_FILE" < "$INPUT_FILE"
 fi

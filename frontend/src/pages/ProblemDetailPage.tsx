@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { useProblemStore } from '../stores/problemStore'
 import { difficultyLabel, difficultyColorClass } from '../types/problem'
@@ -24,6 +24,26 @@ export default function ProblemDetailPage() {
   const [submission, setSubmission] = useState<Submission | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
 
+  // 轮询计时器引用，确保组件卸载时正确清理
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  const clearPolling = useCallback(() => {
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current)
+      intervalRef.current = null
+    }
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current)
+      timeoutRef.current = null
+    }
+  }, [])
+
+  // 组件卸载时清理所有计时器
+  useEffect(() => {
+    return () => clearPolling()
+  }, [clearPolling])
+
   useEffect(() => {
     if (id) {
       fetchProblemDetail(id)
@@ -31,27 +51,30 @@ export default function ProblemDetailPage() {
   }, [id])
 
   const pollSubmission = useCallback((submissionId: string) => {
-    const interval = setInterval(async () => {
+    // 清除已有轮询，避免重复
+    clearPolling()
+
+    intervalRef.current = setInterval(async () => {
       try {
         const result = await submissionApi.getSubmission(submissionId)
         setSubmission(result)
         if (["accepted", "failed", "error"].includes(result.status)) {
-          clearInterval(interval)
+          clearPolling()
           setIsSubmitting(false)
         }
       } catch (error) {
         console.error("轮询失败:", error)
-        clearInterval(interval)
+        clearPolling()
         setIsSubmitting(false)
       }
     }, 2000)
 
     // 30 秒超时保护
-    setTimeout(() => {
-      clearInterval(interval)
+    timeoutRef.current = setTimeout(() => {
+      clearPolling()
       setIsSubmitting(false)
     }, 30000)
-  }, [])
+  }, [clearPolling])
 
   const handleSubmit = async () => {
     if (!code.trim()) {

@@ -17,21 +17,18 @@ class JudgeService:
     TIME_LIMIT_MS = 1000  # 1秒
     MEMORY_LIMIT_MB = 256  # 256MB
     
-    def __init__(self):
-        self._docker_client = None
-
-    @property
-    def docker_client(self):
-        """延迟初始化 Docker 客户端（避免每次实例化都创建连接）"""
-        if self._docker_client is None:
-            self._docker_client = docker.from_env()
-        return self._docker_client
-
-    def close(self):
-        """关闭 Docker 客户端连接"""
-        if self._docker_client is not None:
-            self._docker_client.close()
-            self._docker_client = None
+    @staticmethod
+    def _get_docker_client():
+        """每次评测创建新的 Docker 客户端（Celery fork 后连接失效）"""
+        try:
+            client = docker.from_env()
+            client.ping()
+            return client
+        except Exception:
+            # 重试一次
+            import time
+            time.sleep(1)
+            return docker.from_env()
     
     async def create_submission(
         self,
@@ -73,6 +70,8 @@ class JudgeService:
         submission: Submission
     ) -> None:
         """执行评测"""
+        import logging
+        log = logging.getLogger("judge")
         try:
             # 获取测试用例
             result = await db.execute(
@@ -81,6 +80,7 @@ class JudgeService:
                 ).order_by(TestCase.order_index)
             )
             test_cases = result.scalars().all()
+            log.info(f"Found {len(test_cases)} test cases")
             
             if not test_cases:
                 submission.status = "error"
@@ -132,6 +132,8 @@ class JudgeService:
         """运行单个测试用例"""
         import tempfile
         import os
+        import logging
+        log = logging.getLogger("judge")
         
         # 创建临时文件
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -149,13 +151,19 @@ class JudgeService:
             with open(input_file, "w", encoding="utf-8") as f:
                 f.write(test_case.input_data)
             
+            # 代码文件名
+            code_ext = os.path.splitext(code_file)[1]
+            container_code_path = f"/app/main{code_ext}"
+
             # 运行Docker容器
             try:
-                container = self.docker_client.containers.run(
+                docker_client = self._get_docker_client()
+                log.info(f"Running container for test case, lang={submission.language}")
+                container = docker_client.containers.run(
                     self.DOCKER_IMAGE,
                     command=[
                         submission.language,
-                        "/app/code" + os.path.splitext(code_file)[1],
+                        container_code_path,
                         "/app/input.txt",
                         str(self.TIME_LIMIT_MS),
                         str(self.MEMORY_LIMIT_MB)
@@ -166,6 +174,7 @@ class JudgeService:
                     mem_limit=f"{self.MEMORY_LIMIT_MB}m",
                     cpu_quota=100000,
                     network_mode="none",
+                    # seccomp 由重新构建的 sandbox 镜像内置，不在运行时指定
                     detach=True
                 )
                 
@@ -205,12 +214,22 @@ class JudgeService:
                 container.remove(force=True)
                 
             except ContainerError as e:
+                log.error(f"ContainerError: {str(e)[:150]}")
                 submission_result = SubmissionResult(
                     id=uuid.uuid4(),
                     submission_id=submission.id,
                     test_case_order=test_case.order_index,
-                    status="runtime_error",
-                    actual_output=str(e)
+                    status="runtime_error" if "timeout" in str(e).lower() else "error",
+                    actual_output=str(e)[:500]
+                )
+            except Exception as e:
+                log.error(f"Docker exception: {type(e).__name__}: {str(e)[:200]}")
+                submission_result = SubmissionResult(
+                    id=uuid.uuid4(),
+                    submission_id=submission.id,
+                    test_case_order=test_case.order_index,
+                    status="error",
+                    actual_output=f"{type(e).__name__}: {str(e)[:300]}"
                 )
             except Exception as e:
                 submission_result = SubmissionResult(

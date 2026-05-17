@@ -7,28 +7,30 @@ from app.database import AsyncSessionLocal
 
 async def _run_judge(submission_id: str, task_self) -> dict:
     """异步评测主逻辑 — 单事件循环内完成所有操作"""
-    submission_uuid = uuid.UUID(submission_id)
+    import logging
+    logger = logging.getLogger("judge")
+    logger.setLevel(logging.INFO)
+    if not logger.handlers:
+        logger.addHandler(logging.StreamHandler())
 
-    # 更新任务状态
+    submission_uuid = uuid.UUID(submission_id)
     task_self.update_state(state="STARTED", meta={"submission_id": submission_id})
 
-    # 单个异步会话覆盖整个评测生命周期
     async with AsyncSessionLocal() as db:
         judge_service = JudgeService()
 
-        # 获取提交记录
         submission = await judge_service.get_submission(db, submission_uuid)
         if not submission:
+            logger.error(f"Submission {submission_id} not found")
             return {"status": "error", "message": "Submission not found"}
 
-        # 更新状态为 judging
         submission.status = "judging"
         await db.commit()
 
-        # 执行评测
+        logger.info(f"Judging submission {submission_id}, language={submission.language}")
         await judge_service.judge_submission(db, submission)
+        logger.info(f"Done: status={submission.status}, passed={submission.passed_count}/{submission.total_count}")
 
-        # 返回结果
         return {
             "status": submission.status,
             "score": submission.score,

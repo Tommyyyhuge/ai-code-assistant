@@ -1,6 +1,9 @@
+import base64
+import hashlib
 import re
 from datetime import datetime, timedelta
 from typing import Optional
+from cryptography.fernet import Fernet
 from jose import JWTError, jwt
 from passlib.context import CryptContext
 from app.config import settings
@@ -57,6 +60,34 @@ def slugify(text: str) -> str:
     text = re.sub(r'[^\w\s-]', '', text)
     text = re.sub(r'[-\s]+', '-', text)
     return text[:100]
+
+
+# ── API Key 加解密 ──────────────────────────────────────────────
+
+def _get_fernet() -> Fernet:
+    """从 SECRET_KEY 派生 Fernet 加密实例"""
+    key = hashlib.sha256(settings.SECRET_KEY.encode()).digest()
+    return Fernet(base64.urlsafe_b64encode(key))
+
+
+def encrypt_api_key(plain_key: str) -> str:
+    """加密 API Key 用于数据库存储"""
+    if not plain_key:
+        return ""
+    f = _get_fernet()
+    return f.encrypt(plain_key.encode()).decode()
+
+
+def decrypt_api_key(encrypted_key: str) -> str:
+    """解密从数据库读取的 API Key，兼容历史明文数据"""
+    if not encrypted_key:
+        return ""
+    f = _get_fernet()
+    try:
+        return f.decrypt(encrypted_key.encode()).decode()
+    except Exception:
+        # 解密失败说明是历史明文数据，直接返回
+        return encrypted_key
 
 
 # FastAPI 依赖函数

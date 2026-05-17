@@ -5,11 +5,20 @@ from slowapi.errors import RateLimitExceeded
 from app.rate_limit import limiter
 from app.routers import auth, tags, problems, knowledge, learning_path, ai_chat, ai_provider
 from app.routers.submission import router as submission_router
+from app.config import settings
+
+# Sentry 初始化（DSN 为空时自动禁用）
+import sentry_sdk
+sentry_sdk.init(
+    dsn=settings.SENTRY_DSN,
+    environment=settings.SENTRY_ENVIRONMENT,
+    traces_sample_rate=0.0,
+)
 
 app = FastAPI(
     title="AI_code_assisstant API",
     description="AI 编程学习平台后端 API",
-    version="0.1.0"
+    version=settings.APP_VERSION
 )
 
 # 注册速率限制异常处理
@@ -44,4 +53,4 @@ async def health_check():
 
 @app.get("/")
 async def root():
-    return {"message": "Welcome to AI_code_assisstant API", "version": "0.1.0"}
+    return {"message": "Welcome to AI_code_assisstant API", "version": settings.APP_VERSION}

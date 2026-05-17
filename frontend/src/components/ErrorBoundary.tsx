@@ -1,4 +1,5 @@
 import { Component, ReactNode } from 'react'
+import * as Sentry from '@sentry/react'
 
 interface Props {
   children: ReactNode
@@ -19,23 +20,21 @@ export default class ErrorBoundary extends Component<Props, State> {
 
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
     console.error('ErrorBoundary caught error:', error, errorInfo)
+    Sentry.captureException(error, { contexts: { react: errorInfo as unknown as Record<string, unknown> } })
   }
 
   render() {
     if (this.state.hasError) {
       return (
         this.props.fallback || (
-          <div style={{ padding: '2rem', textAlign: 'center' }}>
-            <h2>出错了</h2>
-            <p style={{ color: '#666' }}>
+          <div className="p-8 text-center">
+            <h2 className="text-xl font-semibold mb-2">出错了</h2>
+            <p className="text-gray-500 mb-4">
               {this.state.error?.message || '发生了未知错误'}
             </p>
             <button
               onClick={() => window.location.reload()}
-              style={{
-                marginTop: '1rem', padding: '0.5rem 1rem', background: '#2563eb',
-                color: 'white', border: 'none', borderRadius: '0.375rem', cursor: 'pointer'
-              }}
+              className="mt-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
             >
               刷新页面
             </button>

@@ -111,7 +111,7 @@ export default function LearningPathDetailPage() {
       {/* 节点列表 */}
       <div className="space-y-2">
         {nodes.map((node) => {
-          const cfg = statusConfig[node.user_status] || statusConfig.not_started
+          const cfg = (statusConfig[node.user_status] ?? statusConfig.not_started)!
           return (
             <div
               key={node.id}

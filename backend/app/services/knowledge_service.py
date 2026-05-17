@@ -18,13 +18,14 @@ class KnowledgeService:
 
     # ── 树构建 ──
 
-    async def get_tree(self, user_id: Optional[uuid.UUID] = None) -> list[KnowledgeNodeTreeItem]:
+    async def get_tree(self, user_id: Optional[uuid.UUID] = None, category: Optional[str] = None) -> list[KnowledgeNodeTreeItem]:
         import uuid as _uuid  # for uuid5
-        result = await self.db.execute(
-            select(KnowledgeNode)
-            .where(KnowledgeNode.is_published == True)
-            .order_by(KnowledgeNode.category, KnowledgeNode.path)
-        )
+        query = select(KnowledgeNode).where(KnowledgeNode.is_published == True)
+        if category:
+            query = query.where(KnowledgeNode.category == category)
+        query = query.order_by(KnowledgeNode.category, KnowledgeNode.path)
+
+        result = await self.db.execute(query)
         nodes = result.scalars().all()
 
         user_progress_map: dict = {}

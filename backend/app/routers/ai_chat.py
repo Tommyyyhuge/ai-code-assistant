@@ -62,6 +62,7 @@ async def delete_conversation(
 
 
 @router.post("/conversations/{conversation_id}/stream")
+@limiter.limit("10/minute")
 async def stream_chat(
     conversation_id: str,
     data: StreamRequest,

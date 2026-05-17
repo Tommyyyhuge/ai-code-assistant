@@ -9,6 +9,7 @@ from app.models.ai_chat import AIConversation, AIMessage
 from app.models.ai_provider import AIProvider
 from app.models.knowledge import KnowledgeNode
 from app.schemas.ai_chat import ConversationCreate, ConversationBrief, MessageItem
+from app.utils.security import decrypt_api_key
 
 
 class AIService:
@@ -139,7 +140,7 @@ class AIService:
                     "POST",
                     f"{base_url}/chat/completions",
                     headers={
-                        "Authorization": f"Bearer {provider.api_key}",
+                        "Authorization": f"Bearer {decrypt_api_key(provider.api_key)}",
                         "Content-Type": "application/json",
                     },
                     json={

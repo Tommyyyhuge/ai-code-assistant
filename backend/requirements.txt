@@ -35,3 +35,6 @@ redis==5.0.1
 
 # Docker SDK (评测沙箱)
 docker==7.1.0
+
+# Sentry
+sentry-sdk[fastapi]==2.60.0

@@ -20,7 +20,7 @@ export default function InlineChat({ knowledgeNodeId, knowledgeNodeTitle, onClos
       setConvId(id)
       setReady(true)
     })()
-  }, [])
+  }, [knowledgeNodeId, knowledgeNodeTitle, createConversation])
 
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [messages, streamingContent])
 

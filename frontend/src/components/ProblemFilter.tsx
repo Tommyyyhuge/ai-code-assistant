@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Search, X } from 'lucide-react'
 
 export interface FilterState {
@@ -17,6 +17,11 @@ interface ProblemFilterProps {
 
 export default function ProblemFilter({ filter, tags, onChange, onApply }: ProblemFilterProps) {
   const [searchInput, setSearchInput] = useState(filter.search)
+
+  // 外部 filter.search 变化时同步本地 state（如父组件重置筛选）
+  useEffect(() => {
+    setSearchInput(filter.search)
+  }, [filter.search])
 
   const handleSearchChange = (value: string) => {
     setSearchInput(value)

@@ -44,6 +44,8 @@ alembic upgrade head
 
 # 4. 导入种子数据
 python -m app.data_seed
+python -m app.data_path_seed
+python -m app.data_problem_seed
 
 # 5. 启动后端
 uvicorn app.main:app --reload --port 8000
